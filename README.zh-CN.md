@@ -7,10 +7,18 @@
 给 **DeepSeek Harness** Web GUI 用的 Windows 托盘启动器：双击启动、托盘常驻、右键退出。
 
 - 全程**没有 cmd / PowerShell 黑窗口**（编译为 GUI 子系统）
-- 单个 **~30 KB** 的 exe，无 Electron、无运行时依赖（用系统自带的 .NET Framework）
+- 单个 **~44 KB** 的 exe，无 Electron、无运行时依赖（用系统自带的 .NET Framework）
 - 再次双击**只打开浏览器**，绝不启动第二个 DSH
 - 自动使用 DSH 打印的**带 token 地址**，避免重启后认证失败
 - 「退出」结束**整棵进程树**，不留 pwsh 子进程
+
+## 下载即用
+
+不想自己编译的话，到 **[Releases](https://github.com/suanrong704/dsh-tray/releases/latest)** 下载
+`dsh-tray-v1.2.0-win-x64.zip`，解压后双击 `dsh-tray.exe` 即可 —— **不需要 Node，也不需要编译**。
+
+首次运行零配置：工作区默认使用你的用户主目录；要改就编辑 exe 同目录的 `dsh-tray.ini`
+（格式见 `dsh-tray.ini.example`）。
 
 ## 为什么还需要一个启动器
 
@@ -23,30 +31,34 @@
 | 重启后用裸地址 `http://127.0.0.1:3080` 打开会**认证失败** | 启动时传 `--no-open`，抓取 dsh 输出的 `?token=...` 地址并用它打开浏览器 |
 | 只杀父进程会留下 pwsh 等子进程 | 退出走 `taskkill /PID <pid> /T /F` 结束整棵树 |
 
-## 托盘图标从哪来
+## 图标说明
 
-程序**不携带** DeepSeek 的图形标识。托盘图标在启动时按以下顺序取得：
+本项目**不携带** DeepSeek 的图形标识。两类图标来源不同：
+
+**① 托盘图标**（右下角）—— 启动时按以下顺序取得：
 
 1. **运行时渲染（默认）**：读本机 DSH 自带的 `favicon.svg`
    （`$DSH_HOME/profiles/*/node_modules/@deepseek-ai/dsh-web-frontend/dist/favicon.svg`），
    用 .NET 自带的 WPF 直接光栅化并组装成多尺寸图标 —— 不需要 Node，也不需要 sharp。
-2. exe 同目录的 `dsh.ico`（如果存在）。
-3. exe 内嵌图标 → 系统默认图标。
+2. exe 内嵌图标（本项目自己的图形）→ 系统默认图标。
 
 任何一步失败（缺 WPF、SVG 结构变化、找不到 favicon）都会被捕获后退回下一级，不影响启动。
 可在 `dsh-tray.ini` 写 `officialIcon=0` 关掉官方图标，或用环境变量 `DSH_FAVICON` 指定其他 SVG。
 
-> **差异提醒**：只有**托盘图标**能这样动态生成。**exe 文件图标和桌面快捷方式图标**编在
-> PE 资源里，运行中无法修改 —— 它们取决于构建时是否内嵌。
+**② exe 文件图标 / 桌面快捷方式图标** —— 是本项目**原创的胖鲸图形**
+（`assets/icon-app.ico`，MIT，构建时内嵌）。PE 资源无法在运行时修改，所以这里用我们自己的图，
+而**右下角托盘里是 DeepSeek 官方鲸鱼**（从你本机的 DSH 读取，从不随二进制分发）。
+
+> 维护者想改这张图：编辑 `tools/make-app-icon.js` 里的图形定义并重新运行它。
 
 ## 环境要求
 
 - **Windows 10 / 11**
 - **.NET Framework 4.x**（系统自带；`csc.exe` 与运行程序都用它，**不需要** .NET SDK）
-- **Node.js**（可选：只在想让 exe 也内嵌图标时才需要；托盘图标默认在运行时从本机 DSH 读取渲染）
+- **Node.js 不需要**：日常构建与运行都不依赖它（仅维护者重新生成 `assets/icon-app.ico` 时才用得上）
 - 一个已安装的 **DeepSeek Harness**（`npx @deepseek-ai/dsh web` 或全局安装均可）
 
-## 构建
+## 从源码构建（可选）
 
 ```powershell
 git clone https://github.com/suanrong704/dsh-tray

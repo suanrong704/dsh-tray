@@ -8,10 +8,19 @@ A Windows tray launcher for the **DeepSeek Harness** web GUI: double-click to st
 notification area, right-click to quit.
 
 - **No cmd / PowerShell window ever appears** (compiled as a GUI-subsystem exe)
-- A single **~30 KB** exe — no Electron, no runtime dependencies (uses the built-in .NET Framework)
+- A single **~44 KB** exe — no Electron, no runtime dependencies (uses the built-in .NET Framework)
 - Double-clicking again **only opens the browser**; it never starts a second DSH
 - Opens the browser with the **tokenized URL** DSH prints, so authentication keeps working after restarts
 - "Exit" kills the **entire process tree**, leaving no orphaned shells behind
+
+## Download and run
+
+Grab `dsh-tray-v1.2.0-win-x64.zip` from
+**[Releases](https://github.com/suanrong704/dsh-tray/releases/latest)**, unzip it and double-click
+`dsh-tray.exe` — **no Node, no build step**.
+
+First run needs no configuration: the workspace defaults to your user profile; edit `dsh-tray.ini`
+next to the exe if you want to change it (see `dsh-tray.ini.example`).
 
 ## Why a launcher at all
 
@@ -24,32 +33,36 @@ notification area, right-click to quit.
 | After a restart, opening the bare `http://127.0.0.1:3080` **fails authentication** | Starts DSH with `--no-open`, captures the `?token=...` URL from its output, and opens that |
 | Killing only the parent process leaves child shells behind | Exit runs `taskkill /PID <pid> /T /F` on the whole tree |
 
-## Where the tray icon comes from
+## About the icons
 
-The program **ships no DeepSeek artwork**. At startup the tray icon is resolved in this order:
+This project **ships no DeepSeek artwork**. The two icons have different sources:
+
+**1. Notification-area (tray) icon** — resolved at startup in this order:
 
 1. **Rendered at runtime (default)**: reads `favicon.svg` from your own DSH install
    (`$DSH_HOME/profiles/*/node_modules/@deepseek-ai/dsh-web-frontend/dist/favicon.svg`) and
    rasterizes it with the built-in .NET WPF stack — no Node, no sharp.
-2. `dsh.ico` next to the exe, if present.
-3. The exe's embedded icon, then the system default icon.
+2. The exe's embedded icon (this project's own artwork), then the system default icon.
 
-Any failure (WPF missing, changed SVG structure, no favicon) is caught and falls through to the
-next tier; it never blocks startup. Set `officialIcon=0` in `dsh-tray.ini` to turn the official
-icon off, or `DSH_FAVICON` to point at a different SVG.
+Any failure (WPF missing, changed SVG structure, no favicon) is caught and falls through; it never
+blocks startup. Set `officialIcon=0` in `dsh-tray.ini` to turn the official icon off, or
+`DSH_FAVICON` to point at a different SVG.
 
-> **Asymmetry worth knowing**: only the **notification-area icon** can be produced this way. The
-> **exe file icon and desktop-shortcut icon** live in PE resources and cannot be changed while the
-> program runs — they depend on what was embedded at build time.
+**2. exe file icon / desktop-shortcut icon** — this project's **own artwork**, a chunky whale
+(`assets/icon-app.ico`, MIT, embedded at build time). PE resources cannot be changed while the
+program runs, so Explorer shows our mark while the **tray shows DeepSeek's official whale** (read
+from your local DSH, never redistributed in the binary).
+
+> Maintainers: edit the artwork definition in `tools/make-app-icon.js` and re-run it.
 
 ## Requirements
 
 - **Windows 10 / 11**
 - **.NET Framework 4.x** (ships with Windows; used for both `csc.exe` and the app — **no .NET SDK needed**)
-- **Node.js** (optional: only needed if you want the icon embedded into the exe; the tray icon is rendered at runtime from your local DSH)
+- **Node.js is not required** — neither to build nor to run (it is only used by maintainers to regenerate `assets/icon-app.ico`)
 - An installed **DeepSeek Harness** (`npx @deepseek-ai/dsh web` or a global install)
 
-## Build
+## Build from source (optional)
 
 ```powershell
 git clone https://github.com/suanrong704/dsh-tray

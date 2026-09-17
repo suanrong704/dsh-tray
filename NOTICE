@@ -22,19 +22,17 @@ dsh-tray 是社区项目，**与 DeepSeek 没有任何隶属关系，也未获�
    把官方标识放进第三方项目容易让人误以为存在官方关联。
 2. **保持仓库干净**：仓库里只留 MIT 许可的本项目代码。
 
-**因此本项目不分发该图形。** 托盘图标改为在使用者本机**运行时**读取并渲染
-（见 README「托盘图标从哪来」），所以用 `scripts/build.ps1 -SkipIcon` 构建出的 exe
-不含任何第三方图形标识，可以分发。
-
-默认构建会额外把该图形内嵌进 exe（以获得一致的资源管理器图标）；是否分发那种二进制，
-由你自行判断并承担相应责任。
+**因此本项目不分发该图形。** 托盘图标在使用者本机**运行时**读取并渲染
+（见 README「图标说明」）；exe 文件图标则是本项目**原创的胖鲸图形**
+（`assets/icon-app.ico`，MIT）。因此**构建出的二进制不含任何第三方图形标识，可自由分发**
+—— Releases 中提供的预编译二进制即是如此。
 
 ## 第三方组件
 
 | 组件 | 用途 | 许可 |
 |---|---|---|
 | `@deepseek-ai/dsh-web-frontend` | 仅构建时读取其 `favicon.svg`，不随仓库分发 | MIT, Copyright (c) 2026 DeepSeek |
-| `sharp`（可选） | 构建时把 SVG 渲染为 PNG/ICO；复用使用者机器上一份已有安装 | Apache-2.0 |
+| `sharp`（可选，仅维护者） | 重新生成 `assets/icon-app.ico` 时把 SVG 渲染为 PNG/ICO | Apache-2.0 |
 | `System.Windows.Forms` / `System.Drawing` | 托盘与图标，随 .NET Framework 提供 | Microsoft .NET Framework 许可 |
 
 本项目代码以 MIT 许可发布，见 [LICENSE](./LICENSE)。
