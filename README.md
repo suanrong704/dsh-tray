@@ -1,5 +1,7 @@
 # dsh-tray
 
+[![build](https://github.com/suanrong704/dsh-tray/actions/workflows/build.yml/badge.svg)](https://github.com/suanrong704/dsh-tray/actions/workflows/build.yml)
+
 English | [中文](./README.zh-CN.md)
 
 A Windows tray launcher for the **DeepSeek Harness** web GUI: double-click to start, lives in the

@@ -1,5 +1,7 @@
 # dsh-tray
 
+[![build](https://github.com/suanrong704/dsh-tray/actions/workflows/build.yml/badge.svg)](https://github.com/suanrong704/dsh-tray/actions/workflows/build.yml)
+
 [English](./README.md) | 中文
 
 给 **DeepSeek Harness** Web GUI 用的 Windows 托盘启动器：双击启动、托盘常驻、右键退出。
