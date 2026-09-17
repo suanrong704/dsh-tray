@@ -12,16 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      # CI has no DSH installed, so the build-time icon is skipped: the tray renders
-      # its icon at runtime from the end user's own DSH install. A binary built this
-      # way embeds no third-party mark and is fine to redistribute.
+      # No Node.js step: the exe icon is the committed assets/icon-app.ico, and the
+      # notification-area icon is rendered at runtime from the end user's own DSH.
       - name: Build
         shell: pwsh
-        run: ./scripts/build.ps1 -SkipIcon
+        run: ./scripts/build.ps1
 
       - name: Verify the executable
         shell: pwsh
@@ -37,6 +32,19 @@ jobs:
           if ($subsystem -ne 2) { throw "PE subsystem is $subsystem, expected 2 (Windows GUI)" }
           Write-Host 'PE subsystem = 2 (Windows GUI): OK'
 
+          # The build must embed this project's own artwork. If someone drops the
+          # icon (or the -win32icon flag), the exe silently falls back to the generic
+          # .NET icon - catch that here.
+          $ico = [IO.File]::ReadAllBytes('assets/icon-app.ico')
+          $entryLen = [BitConverter]::ToInt32($ico, 6 + 8)
+          $entryOff = [BitConverter]::ToInt32($ico, 6 + 12)
+          $slice = New-Object byte[] 64
+          [Array]::Copy($ico, $entryOff + $entryLen - 64, $slice, 0, 64)
+          $hexExe = [BitConverter]::ToString($bytes).Replace('-', '')
+          $hexSlice = [BitConverter]::ToString($slice).Replace('-', '')
+          if (-not $hexExe.Contains($hexSlice)) { throw 'assets/icon-app.ico is not embedded in the exe' }
+          Write-Host 'app icon embedded: OK'
+
       - name: Verify the self-check contract
         shell: pwsh
         run: |
@@ -45,7 +53,8 @@ jobs:
           Get-Content $selftest
 
           # These keys are the diagnostic contract; renaming one would silently break
-          # every bug report that quotes them.
+          # every bug report that quotes them. runtimeIcon is expected to be
+          # "no favicon found" on CI, which is the documented graceful fallback.
           $text = Get-Content $selftest -Raw
           foreach ($key in @('workspace', 'wsExists', 'port', 'faviconPath', 'runtimeIcon', 'urlParseTest')) {
             if ($text -notmatch [regex]::Escape($key)) { throw "self-check output is missing '$key'" }
