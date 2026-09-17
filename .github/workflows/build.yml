@@ -1,0 +1,53 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # dsh-tray is a Windows-only .NET Framework tray application.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # CI has no DSH installed, so the build-time icon is skipped: the tray renders
+      # its icon at runtime from the end user's own DSH install. A binary built this
+      # way embeds no third-party mark and is fine to redistribute.
+      - name: Build
+        shell: pwsh
+        run: ./scripts/build.ps1 -SkipIcon
+
+      - name: Verify the executable
+        shell: pwsh
+        run: |
+          $exe = 'dist/dsh-tray.exe'
+          if (-not (Test-Path $exe)) { throw "$exe was not produced" }
+
+          # Guard the invariant that keeps the console window away: the PE subsystem
+          # must be 2 (Windows GUI), never 3 (Console).
+          $bytes = [IO.File]::ReadAllBytes($exe)
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $subsystem = [BitConverter]::ToUInt16($bytes, $peOffset + 0x5C)
+          if ($subsystem -ne 2) { throw "PE subsystem is $subsystem, expected 2 (Windows GUI)" }
+          Write-Host 'PE subsystem = 2 (Windows GUI): OK'
+
+      - name: Verify the self-check contract
+        shell: pwsh
+        run: |
+          $selftest = 'dist/selftest.txt'
+          if (-not (Test-Path $selftest)) { throw 'selftest.txt was not produced' }
+          Get-Content $selftest
+
+          # These keys are the diagnostic contract; renaming one would silently break
+          # every bug report that quotes them.
+          $text = Get-Content $selftest -Raw
+          foreach ($key in @('workspace', 'wsExists', 'port', 'faviconPath', 'runtimeIcon', 'urlParseTest')) {
+            if ($text -notmatch [regex]::Escape($key)) { throw "self-check output is missing '$key'" }
+          }
+          Write-Host 'self-check output: OK'
