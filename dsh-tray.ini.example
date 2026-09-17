@@ -8,3 +8,8 @@ workspace=C:\Users\YourName\workspace
 
 # Web GUI 端口。改了它，DSH 与托盘会用新端口；不同端口可同时跑多份实例。
 port=3080
+
+# 是否使用官方鲸鱼图标。托盘图标默认在运行时从本机 DSH 读取 favicon.svg 渲染，
+# 程序本身不携带该图形。设为 0/false/no/off 可关掉，改用 exe 同目录的 dsh.ico
+# 或 exe 内嵌图标。
+# officialIcon=1

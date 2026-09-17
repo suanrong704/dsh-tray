@@ -3,7 +3,9 @@
 
   Usage:
     pwsh -File scripts/build.ps1              # full build (needs DSH installed locally)
-    pwsh -File scripts/build.ps1 -SkipIcon    # compile only, no icon (used by CI)
+    pwsh -File scripts/build.ps1 -SkipIcon    # compile only, no icon; also produces
+                                              # a binary with no third-party mark
+                                              # embedded (used by CI and for releases)
 
   NOTE: this file is deliberately ASCII-only. Windows PowerShell 5.1 decodes
   BOM-less files as the system ANSI codepage, so non-ASCII text here would be
@@ -30,11 +32,18 @@ if ($SkipIcon) {
     Write-Host '[1/3] Skipping icon generation (-SkipIcon)'
 } else {
     Write-Host '[1/3] Generating icon from the locally installed DSH favicon ...'
+    # The embedded icon is optional: the tray renders its icon at runtime from the
+    # local DSH favicon, so a machine without Node/sharp can still build and run.
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        throw 'Node.js is required to generate the icon. Install Node, or use -SkipIcon to compile only.'
+        Write-Host '      Node.js not found - skipping the build-time icon.'
+        Write-Host '      The tray will render its icon at runtime from your local DSH instead.'
+    } else {
+        & node (Join-Path $root 'tools\build-icon.js') --out $ico --preview (Join-Path $OutDir 'icon-preview.png')
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host '      Icon generation failed - continuing without an embedded icon.'
+            Write-Host '      The tray will render its icon at runtime from your local DSH instead.'
+        }
     }
-    & node (Join-Path $root 'tools\build-icon.js') --out $ico --preview (Join-Path $OutDir 'icon-preview.png')
-    if ($LASTEXITCODE -ne 0) { throw ('Icon generation failed (exit code ' + $LASTEXITCODE + ')') }
 }
 
 # ---- 2. Compile ----
@@ -43,13 +52,27 @@ $csc = Join-Path $env:SystemRoot 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:SystemRoot 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 if (-not (Test-Path $csc)) { throw 'csc.exe not found (.NET Framework 4.x ships with Windows 10/11).' }
 
+# WPF assemblies: used only to render the notification-area icon from the local
+# DSH favicon.svg at runtime. System.Xaml sits in the framework directory; the
+# other two live in its WPF subdirectory.
+$fwDir = Split-Path $csc -Parent
+$wpfRefs = @(
+    ('/r:' + (Join-Path $fwDir 'WPF\PresentationCore.dll')),
+    ('/r:' + (Join-Path $fwDir 'WPF\WindowsBase.dll')),
+    ('/r:' + (Join-Path $fwDir 'System.Xaml.dll'))
+)
+foreach ($wpfRef in $wpfRefs) {
+    $wpfPath = $wpfRef.Substring(3)
+    if (-not (Test-Path $wpfPath)) { throw ('WPF assembly not found: ' + $wpfPath) }
+}
+
 $exe = Join-Path $OutDir 'dsh-tray.exe'
 $srcFile = Join-Path $root 'src\DshTray.cs'
 
 # Build the argument list with explicit variables: mixing a `+` expression with a
 # trailing comma inside an array literal parses surprisingly in PowerShell.
 $cscArgs = @('/nologo', '/target:winexe', ('/out:' + $exe),
-             '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll')
+             '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll') + $wpfRefs
 if (Test-Path $ico) { $cscArgs += ('/win32icon:' + $ico) }
 $cscArgs += $srcFile
 

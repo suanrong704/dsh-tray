@@ -2,6 +2,26 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，版本号遵循语义化版本。
 
+## [1.1.0] - 2026-09-18
+
+### 新增
+
+- **托盘图标改为运行时生成**：启动时读取本机 DSH 的 `favicon.svg`，用 .NET 自带的
+  WPF（`Geometry.Parse` + `RenderTargetBitmap`）直接光栅化，在内存里组装多尺寸 ICO。
+  **不再依赖 Node / sharp**，程序本身也**不携带**官方图形标识。
+- 图标三级降级：运行时渲染 → exe 同目录 `dsh.ico` → exe 内嵌图标 → 系统默认图标。
+  缺少 WPF、SVG 结构变化、找不到 favicon 都会被捕获并退回，绝不影响程序启动。
+- 新增 `dsh-tray.ini` 选项 `officialIcon=0`，可关闭官方图标。
+- 新增环境变量 `DSH_FAVICON`，可指定其他 SVG 作为图标来源。
+- 自检新增 `faviconPath` / `runtimeIcon` 两行，构建时即可确认运行时渲染是否可用。
+- 构建脚本自动解析 WPF 程序集引用；**Node 变为可选** —— 缺少 Node 或图标生成失败
+  只警告不中断；`-SkipIcon` 产出的二进制不含任何第三方图形标识，可用于分发。
+
+### 已知限制
+
+- 只有**托盘图标**能运行时生成。exe 文件图标与桌面快捷方式图标属于 PE 资源，
+  运行中无法修改，取决于构建时是否内嵌。
+
 ## [1.0.0] - 2026-09-18
 
 首个版本。

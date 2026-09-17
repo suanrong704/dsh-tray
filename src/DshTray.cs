@@ -17,6 +17,10 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+// WPF 只用于「运行时把官方 favicon.svg 渲染成托盘图标」。若系统缺少 WPF，
+// 调用会抛异常并被捕获，程序退回 dsh.ico / 内嵌图标，不影响启动。
+using WpfMedia = System.Windows.Media;
+using WpfImaging = System.Windows.Media.Imaging;
 
 namespace DshTray
 {
@@ -35,6 +39,7 @@ namespace DshTray
         private readonly string _url;
         private readonly string _logPath;
         private readonly string _appDir;
+        private readonly bool _officialIcon;   // 是否允许使用官方鲸鱼图标（ini: officialIcon）
 
         private Process _dsh;              // 由本实例启动的进程
         private bool _owned;               // DSH 是否由本实例持有
@@ -49,11 +54,12 @@ namespace DshTray
         private int _missCount;            // 外部启动模式下端口连续丢失次数
         private readonly object _logLock = new object();
 
-        public TrayApp(string appDir, string workspace, int port)
+        public TrayApp(string appDir, string workspace, int port, bool officialIcon)
         {
             _appDir = appDir;
             _workspace = workspace;
             _port = port;
+            _officialIcon = officialIcon;
             _url = "http://127.0.0.1:" + port;
             _owned = false;
 
@@ -90,21 +96,163 @@ namespace DshTray
         }
 
         // ---------- 图标 ----------
+        // 三级降级：
+        //   1) 运行时从本机 DSH 的 favicon.svg 渲染（不依赖 Node/sharp，程序里也不含官方图形）
+        //   2) exe 同目录的 dsh.ico
+        //   3) exe 内嵌图标 → 系统默认图标
         private Icon LoadAppIcon()
         {
+            if (_officialIcon)
+            {
+                try
+                {
+                    string favicon = FindFavicon();
+                    if (favicon != null)
+                    {
+                        Icon rendered = RenderIconFromSvg(favicon);
+                        if (rendered != null)
+                        {
+                            Log("icon: rendered at runtime from " + favicon);
+                            return rendered;
+                        }
+                        Log("icon: favicon found but not renderable, falling back");
+                    }
+                    else Log("icon: no local DSH favicon found, falling back");
+                }
+                catch (Exception ex)
+                {
+                    // 缺 WPF、SVG 结构变化等都在这里兜住，绝不影响程序启动
+                    Log("icon: runtime render unavailable (" + ex.GetType().Name + ": " + ex.Message + ")");
+                }
+            }
+
             string icoPath = Path.Combine(_appDir, "dsh.ico");
             try
             {
-                if (File.Exists(icoPath)) return new Icon(icoPath, SystemInformation.SmallIconSize);
+                if (File.Exists(icoPath))
+                {
+                    Log("icon: using " + icoPath);
+                    return new Icon(icoPath, SystemInformation.SmallIconSize);
+                }
             }
             catch { }
             try
             {
                 Icon assoc = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-                if (assoc != null) return assoc;
+                if (assoc != null) { Log("icon: using the executable embedded icon"); return assoc; }
             }
             catch { }
+            Log("icon: using the system default icon");
             return SystemIcons.Application;
+        }
+
+        // 本机 DSH 自带的官方 favicon.svg（优先 DSH_FAVICON，再找 $DSH_HOME/profiles/*）
+        private static string FindFavicon()
+        {
+            string env = Environment.GetEnvironmentVariable("DSH_FAVICON");
+            if (!string.IsNullOrEmpty(env)) return File.Exists(env) ? env : null;
+
+            string home = Environment.GetEnvironmentVariable("DSH_HOME");
+            if (string.IsNullOrEmpty(home))
+                home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dsh");
+
+            string rel = Path.Combine("node_modules", "@deepseek-ai", "dsh-web-frontend", "dist", "favicon.svg");
+            string profiles = Path.Combine(home, "profiles");
+            List<string> candidates = new List<string>();
+            candidates.Add(Path.Combine(profiles, rel));
+            try
+            {
+                string[] dirs = Directory.GetDirectories(profiles);
+                for (int i = 0; i < dirs.Length; i++) candidates.Add(Path.Combine(dirs[i], rel));
+            }
+            catch { }
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                try { if (File.Exists(candidates[i])) return candidates[i]; }
+                catch { }
+            }
+            return null;
+        }
+
+        // 用 WPF 把 SVG 路径光栅化，再在内存里拼成多尺寸 ICO。
+        // 只用 .NET Framework 自带的 System.Windows.Media，无外部依赖。
+        internal static Icon RenderIconFromSvg(string svgPath)
+        {
+            string svg = File.ReadAllText(svgPath);
+            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(
+                svg, "<path[^>]*\\sd=\"([^\"]+)\"");
+            if (!m.Success) return null;
+
+            WpfMedia.Geometry geo = WpfMedia.Geometry.Parse(m.Groups[1].Value);
+            System.Windows.Rect b = geo.Bounds;
+            if (b.Width <= 0 || b.Height <= 0) return null;
+
+            int[] sizes = new int[] { 16, 20, 24, 32, 48, 64, 256 };
+            List<byte[]> pngs = new List<byte[]>();
+            for (int i = 0; i < sizes.Length; i++)
+            {
+                int size = sizes[i];
+                WpfMedia.DrawingVisual visual = new WpfMedia.DrawingVisual();
+                using (WpfMedia.DrawingContext dc = visual.RenderOpen())
+                {
+                    double r = size * 0.22;
+                    dc.DrawRoundedRectangle(
+                        new WpfMedia.SolidColorBrush(WpfMedia.Color.FromRgb(77, 107, 254)), null,
+                        new System.Windows.Rect(0, 0, size, size), r, r);
+
+                    double target = size * 0.64;
+                    double scale = Math.Min(target / b.Width, target / b.Height);
+                    WpfMedia.TransformGroup tg = new WpfMedia.TransformGroup();
+                    tg.Children.Add(new WpfMedia.ScaleTransform(scale, scale));
+                    tg.Children.Add(new WpfMedia.TranslateTransform(
+                        (size - b.Width * scale) / 2 - b.X * scale,
+                        (size - b.Height * scale) / 2 - b.Y * scale));
+                    dc.PushTransform(tg);
+                    dc.DrawGeometry(WpfMedia.Brushes.White, null, geo);
+                    dc.Pop();
+                }
+                WpfImaging.RenderTargetBitmap rtb =
+                    new WpfImaging.RenderTargetBitmap(size, size, 96, 96, WpfMedia.PixelFormats.Pbgra32);
+                rtb.Render(visual);
+                WpfImaging.PngBitmapEncoder e = new WpfImaging.PngBitmapEncoder();
+                e.Frames.Add(WpfImaging.BitmapFrame.Create(rtb));
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    e.Save(ms);
+                    pngs.Add(ms.ToArray());
+                }
+            }
+
+            byte[] ico = BuildIco(sizes, pngs);
+            using (MemoryStream ms = new MemoryStream(ico))
+                return new Icon(ms, SystemInformation.SmallIconSize);
+        }
+
+        // ICO 容器（Vista+ 允许内嵌 PNG），与 tools/build-icon.js 输出同格式
+        private static byte[] BuildIco(int[] sizes, List<byte[]> pngs)
+        {
+            MemoryStream ms = new MemoryStream();
+            BinaryWriter w = new BinaryWriter(ms);
+            w.Write((ushort)0);
+            w.Write((ushort)1);
+            w.Write((ushort)sizes.Length);
+            int offset = 6 + 16 * sizes.Length;
+            for (int i = 0; i < sizes.Length; i++)
+            {
+                byte dim = (byte)(sizes[i] >= 256 ? 0 : sizes[i]);
+                w.Write(dim);
+                w.Write(dim);
+                w.Write((byte)0);
+                w.Write((byte)0);
+                w.Write((ushort)1);
+                w.Write((ushort)32);
+                w.Write((uint)pngs[i].Length);
+                w.Write((uint)offset);
+                offset += pngs[i].Length;
+            }
+            for (int i = 0; i < pngs.Count; i++) w.Write(pngs[i]);
+            w.Flush();
+            return ms.ToArray();
         }
 
         // ---------- 启动判定 ----------
@@ -584,6 +732,18 @@ namespace DshTray
             sb.AppendLine("url          = http://127.0.0.1:" + port);
             sb.AppendLine("iconExists   = " + File.Exists(Path.Combine(appDir, "dsh.ico")));
             sb.AppendLine("wsExists     = " + Directory.Exists(workspace));
+
+            string favicon = null;
+            string runtimeIcon;
+            try
+            {
+                favicon = FindFavicon();
+                if (favicon == null) runtimeIcon = "no favicon found";
+                else runtimeIcon = RenderIconFromSvg(favicon) != null ? "ok" : "render returned null";
+            }
+            catch (Exception ex) { runtimeIcon = "unavailable: " + ex.GetType().Name; }
+            sb.AppendLine("faviconPath  = " + (favicon == null ? "(not found)" : favicon));
+            sb.AppendLine("runtimeIcon  = " + runtimeIcon);
             sb.AppendLine("resolvedFile = " + fileName);
             sb.AppendLine("resolvedArgs = " + arguments);
             sb.AppendLine("resolvedCwd  = " + workDir);
@@ -606,6 +766,7 @@ namespace DshTray
             // 默认工作区 = 用户主目录；用 dsh-tray.ini 的 workspace= 或环境变量 DSH_WORKSPACE 覆盖
             string workspace = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             int port = 3080;
+            bool officialIcon = true;   // ini: officialIcon=0 可关掉官方鲸鱼图标
 
             // 可选 ini：dsh-tray.ini（workspace=... / port=...）
             string ini = Path.Combine(appDir, "dsh-tray.ini");
@@ -625,6 +786,11 @@ namespace DshTray
                     {
                         int p;
                         if (int.TryParse(val, out p) && p > 0 && p < 65536) port = p;
+                    }
+                    else if (key == "officialicon")
+                    {
+                        string v = val.ToLowerInvariant();
+                        officialIcon = !(v == "0" || v == "false" || v == "no" || v == "off");
                     }
                 }
             }
@@ -689,7 +855,7 @@ namespace DshTray
             }
 
             GC.KeepAlive(mutex);
-            Application.Run(new TrayApp(appDir, workspace, port));
+            Application.Run(new TrayApp(appDir, workspace, port, officialIcon));
         }
     }
 }

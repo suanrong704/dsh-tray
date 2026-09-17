@@ -22,11 +22,29 @@ notification area, right-click to quit.
 | After a restart, opening the bare `http://127.0.0.1:3080` **fails authentication** | Starts DSH with `--no-open`, captures the `?token=...` URL from its output, and opens that |
 | Killing only the parent process leaves child shells behind | Exit runs `taskkill /PID <pid> /T /F` on the whole tree |
 
+## Where the tray icon comes from
+
+The program **ships no DeepSeek artwork**. At startup the tray icon is resolved in this order:
+
+1. **Rendered at runtime (default)**: reads `favicon.svg` from your own DSH install
+   (`$DSH_HOME/profiles/*/node_modules/@deepseek-ai/dsh-web-frontend/dist/favicon.svg`) and
+   rasterizes it with the built-in .NET WPF stack — no Node, no sharp.
+2. `dsh.ico` next to the exe, if present.
+3. The exe's embedded icon, then the system default icon.
+
+Any failure (WPF missing, changed SVG structure, no favicon) is caught and falls through to the
+next tier; it never blocks startup. Set `officialIcon=0` in `dsh-tray.ini` to turn the official
+icon off, or `DSH_FAVICON` to point at a different SVG.
+
+> **Asymmetry worth knowing**: only the **notification-area icon** can be produced this way. The
+> **exe file icon and desktop-shortcut icon** live in PE resources and cannot be changed while the
+> program runs — they depend on what was embedded at build time.
+
 ## Requirements
 
 - **Windows 10 / 11**
 - **.NET Framework 4.x** (ships with Windows; used for both `csc.exe` and the app — **no .NET SDK needed**)
-- **Node.js** (build-time only, to generate the icon)
+- **Node.js** (optional: only needed if you want the icon embedded into the exe; the tray icon is rendered at runtime from your local DSH)
 - An installed **DeepSeek Harness** (`npx @deepseek-ai/dsh web` or a global install)
 
 ## Build
@@ -118,7 +136,7 @@ dsh-tray.exe --selftest out.txt   # write diagnostics only; no UI, starts nothin
   can only open the bare address. That works as long as the browser still holds that process's signed
   cookie; otherwise restart DSH from this launcher.
 - After the port is ready, it waits at most 10 s for the token URL before falling back.
-- The icon's appearance depends on the DSH version installed on your machine.
+- The icon's appearance depends on the DSH version installed on your machine; the tray icon is generated at runtime, while the exe/shortcut icon must be embedded at build time.
 
 ## Trademarks and credits
 

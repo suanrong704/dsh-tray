@@ -21,11 +21,27 @@
 | 重启后用裸地址 `http://127.0.0.1:3080` 打开会**认证失败** | 启动时传 `--no-open`，抓取 dsh 输出的 `?token=...` 地址并用它打开浏览器 |
 | 只杀父进程会留下 pwsh 等子进程 | 退出走 `taskkill /PID <pid> /T /F` 结束整棵树 |
 
+## 托盘图标从哪来
+
+程序**不携带** DeepSeek 的图形标识。托盘图标在启动时按以下顺序取得：
+
+1. **运行时渲染（默认）**：读本机 DSH 自带的 `favicon.svg`
+   （`$DSH_HOME/profiles/*/node_modules/@deepseek-ai/dsh-web-frontend/dist/favicon.svg`），
+   用 .NET 自带的 WPF 直接光栅化并组装成多尺寸图标 —— 不需要 Node，也不需要 sharp。
+2. exe 同目录的 `dsh.ico`（如果存在）。
+3. exe 内嵌图标 → 系统默认图标。
+
+任何一步失败（缺 WPF、SVG 结构变化、找不到 favicon）都会被捕获后退回下一级，不影响启动。
+可在 `dsh-tray.ini` 写 `officialIcon=0` 关掉官方图标，或用环境变量 `DSH_FAVICON` 指定其他 SVG。
+
+> **差异提醒**：只有**托盘图标**能这样动态生成。**exe 文件图标和桌面快捷方式图标**编在
+> PE 资源里，运行中无法修改 —— 它们取决于构建时是否内嵌。
+
 ## 环境要求
 
 - **Windows 10 / 11**
 - **.NET Framework 4.x**（系统自带；`csc.exe` 与运行程序都用它，**不需要** .NET SDK）
-- **Node.js**（仅构建时用于生成图标）
+- **Node.js**（可选：只在想让 exe 也内嵌图标时才需要；托盘图标默认在运行时从本机 DSH 读取渲染）
 - 一个已安装的 **DeepSeek Harness**（`npx @deepseek-ai/dsh web` 或全局安装均可）
 
 ## 构建
@@ -113,7 +129,7 @@ dsh-tray.exe --selftest out.txt   # 只写诊断信息，不出界面、不启�
 - 若 DSH 是**外部启动**的（例如终端里的 `npx dsh web`），托盘拿不到 token 地址，只能打开裸地址；
   只要浏览器还持有该进程的签名 cookie 就能用，否则请从本启动器重启 DSH。
 - 端口就绪后最多再等 10 秒抓取 token URL，超时则回退裸地址。
-- 图标外观取决于你本机的 DSH 版本。
+- 图标外观取决于你本机的 DSH 版本；托盘图标是运行时生成的，而 exe/快捷方式图标必须构建时内嵌。
 
 ## 商标与致谢
 
