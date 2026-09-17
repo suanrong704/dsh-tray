@@ -1,5 +1,5 @@
 // DeepSeek Harness 托盘启动器
-// 编译：csc /target:winexe /win32icon:dsh.ico /out:dsh-tray.exe DshTray.cs
+// 编译：csc /target:winexe /win32icon:assets\icon-app.ico /out:dsh-tray.exe src\DshTray.cs
 //
 // 行为：
 //   双击     → 已在运行则只打开浏览器；未运行则无窗口启动 → 等端口就绪 → 打开浏览器
@@ -18,7 +18,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 // WPF 只用于「运行时把官方 favicon.svg 渲染成托盘图标」。若系统缺少 WPF，
-// 调用会抛异常并被捕获，程序退回 dsh.ico / 内嵌图标，不影响启动。
+// 调用会抛异常并被捕获，程序退回 exe 内嵌图标，不影响启动。
 using WpfMedia = System.Windows.Media;
 using WpfImaging = System.Windows.Media.Imaging;
 
@@ -91,15 +91,15 @@ namespace DshTray
             _timer.Tick += OnTick;
             _timer.Start();
 
+            Log("=== dsh-tray start: appDir=" + _appDir + " workspace=" + _workspace + " port=" + _port);
             StartSignalThread();
             Bootstrap();
         }
 
         // ---------- 图标 ----------
-        // 三级降级：
+        // 两级降级：
         //   1) 运行时从本机 DSH 的 favicon.svg 渲染（不依赖 Node/sharp，程序里也不含官方图形）
-        //   2) exe 同目录的 dsh.ico
-        //   3) exe 内嵌图标 → 系统默认图标
+        //   2) exe 内嵌图标（本项目自己的原创图形）→ 系统默认图标
         private Icon LoadAppIcon()
         {
             if (_officialIcon)
@@ -126,16 +126,6 @@ namespace DshTray
                 }
             }
 
-            string icoPath = Path.Combine(_appDir, "dsh.ico");
-            try
-            {
-                if (File.Exists(icoPath))
-                {
-                    Log("icon: using " + icoPath);
-                    return new Icon(icoPath, SystemInformation.SmallIconSize);
-                }
-            }
-            catch { }
             try
             {
                 Icon assoc = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
@@ -730,7 +720,7 @@ namespace DshTray
             sb.AppendLine("workspace    = " + workspace);
             sb.AppendLine("port         = " + port);
             sb.AppendLine("url          = http://127.0.0.1:" + port);
-            sb.AppendLine("iconExists   = " + File.Exists(Path.Combine(appDir, "dsh.ico")));
+            sb.AppendLine("iconExists   = " + (Icon.ExtractAssociatedIcon(Application.ExecutablePath) != null));
             sb.AppendLine("wsExists     = " + Directory.Exists(workspace));
 
             string favicon = null;

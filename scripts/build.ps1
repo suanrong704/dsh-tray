@@ -1,11 +1,13 @@
 <#
-  Build dsh-tray: generate icon -> compile exe -> self-check.
+  Build dsh-tray: compile the tray app -> self-check.
 
   Usage:
-    pwsh -File scripts/build.ps1              # full build (needs DSH installed locally)
-    pwsh -File scripts/build.ps1 -SkipIcon    # compile only, no icon; also produces
-                                              # a binary with no third-party mark
-                                              # embedded (used by CI and for releases)
+    pwsh -File scripts/build.ps1              # full build (embeds assets/icon-app.ico)
+    pwsh -File scripts/build.ps1 -SkipIcon    # compile without embedding the app icon
+
+  Requirements: Windows 10/11 + the built-in .NET Framework 4.x.
+  No Node.js needed: the exe icon is the committed assets/icon-app.ico, and the
+  notification-area icon is rendered at runtime from the local DSH install.
 
   NOTE: this file is deliberately ASCII-only. Windows PowerShell 5.1 decodes
   BOM-less files as the system ANSI codepage, so non-ASCII text here would be
@@ -26,28 +28,8 @@ if (-not $OutDir) { $OutDir = Join-Path $root 'dist' }
 $OutDir = [IO.Path]::GetFullPath($OutDir)
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-# ---- 1. Icon: derived from the locally installed DSH (never shipped in the repo) ----
-$ico = Join-Path $OutDir 'dsh.ico'
-if ($SkipIcon) {
-    Write-Host '[1/3] Skipping icon generation (-SkipIcon)'
-} else {
-    Write-Host '[1/3] Generating icon from the locally installed DSH favicon ...'
-    # The embedded icon is optional: the tray renders its icon at runtime from the
-    # local DSH favicon, so a machine without Node/sharp can still build and run.
-    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        Write-Host '      Node.js not found - skipping the build-time icon.'
-        Write-Host '      The tray will render its icon at runtime from your local DSH instead.'
-    } else {
-        & node (Join-Path $root 'tools\build-icon.js') --out $ico --preview (Join-Path $OutDir 'icon-preview.png')
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host '      Icon generation failed - continuing without an embedded icon.'
-            Write-Host '      The tray will render its icon at runtime from your local DSH instead.'
-        }
-    }
-}
-
-# ---- 2. Compile ----
-Write-Host '[2/3] Compiling src/DshTray.cs ...'
+# ---- 1. Compile ----
+Write-Host '[1/2] Compiling src/DshTray.cs ...'
 $csc = Join-Path $env:SystemRoot 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:SystemRoot 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 if (-not (Test-Path $csc)) { throw 'csc.exe not found (.NET Framework 4.x ships with Windows 10/11).' }
@@ -66,6 +48,9 @@ foreach ($wpfRef in $wpfRefs) {
     if (-not (Test-Path $wpfPath)) { throw ('WPF assembly not found: ' + $wpfPath) }
 }
 
+# The exe icon is this project's own artwork (MIT), committed under assets/.
+# It never contains DeepSeek's mark, so a built binary is safe to redistribute.
+$ico = Join-Path $root 'assets\icon-app.ico'
 $exe = Join-Path $OutDir 'dsh-tray.exe'
 $srcFile = Join-Path $root 'src\DshTray.cs'
 
@@ -73,7 +58,18 @@ $srcFile = Join-Path $root 'src\DshTray.cs'
 # trailing comma inside an array literal parses surprisingly in PowerShell.
 $cscArgs = @('/nologo', '/target:winexe', ('/out:' + $exe),
              '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll') + $wpfRefs
-if (Test-Path $ico) { $cscArgs += ('/win32icon:' + $ico) }
+
+if (Test-Path $ico) {
+    if ($SkipIcon) {
+        Write-Host '      -SkipIcon: not embedding assets/icon-app.ico'
+    } else {
+        $cscArgs += ('/win32icon:' + $ico)
+        Write-Host ('      embedding ' + $ico)
+    }
+} else {
+    Write-Host '      WARNING: assets/icon-app.ico missing - the exe will use the default icon.'
+    Write-Host '      (Maintainers can regenerate it with: node tools/make-app-icon.js)'
+}
 $cscArgs += $srcFile
 
 Write-Host ('      ' + $csc)
@@ -93,8 +89,8 @@ if ((Test-Path $iniExample) -and -not (Test-Path $iniTarget)) {
     Write-Host ('      Wrote config template: ' + $iniTarget + '  (workspace=' + $env:USERPROFILE + ')')
 }
 
-# ---- 3. Self-check ----
-Write-Host '[3/3] Self-check ...'
+# ---- 2. Self-check ----
+Write-Host '[2/2] Self-check ...'
 $selftest = Join-Path $OutDir 'selftest.txt'
 Start-Process -FilePath $exe -ArgumentList '--selftest', ('"' + $selftest + '"') -Wait
 if (Test-Path $selftest) { Get-Content $selftest -Encoding UTF8 }
