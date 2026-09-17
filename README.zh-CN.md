@@ -141,7 +141,7 @@ dsh-tray.exe --selftest out.txt   # 只写诊断信息，不出界面、不启�
 ## 已知限制
 
 - **仅 Windows**（依赖 WinForms 与 `taskkill`）。
-- **界面文案目前是中文**，欢迎 PR 补多语言。
+- 界面文案跟随系统语言（中文系统中文，其余英文）；可用 `dsh-tray.ini` 的 `language=` 或环境变量 `DSH_TRAY_LANG=zh|en` 强制指定。
 - 若 DSH 是**外部启动**的（例如终端里的 `npx dsh web`），托盘拿不到 token 地址，只能打开裸地址；
   只要浏览器还持有该进程的签名 cookie 就能用，否则请从本启动器重启 DSH。
 - 端口就绪后最多再等 10 秒抓取 token URL，超时则回退裸地址。

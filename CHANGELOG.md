@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，版本号遵循语义化版本。
 
+## [1.2.1] - 2026-09-18
+
+### 新增
+
+- **托盘界面多语言**：跟随系统语言（中文系统中文，其余英文）；可用 `dsh-tray.ini` 的
+  `language=zh|en` 或环境变量 `DSH_TRAY_LANG` 强制指定（环境变量优先）。
+- 自检新增 `uiLanguage` 字段，便于确认当前生效的语言。
+- 补充 `CONTRIBUTING.md` 与 Issue 模板（含自检输出要求）。
+
+### 变更
+
+- CI 增加并发取消：同一 ref 的旧运行自动取消，省 Actions 额度。
+- git 凭据走 `gh auth git-credential`，不再受旧 PAT 缺少 `workflow` 权限的限制。
+
 ## [1.2.0] - 2026-09-18
 
 ### 新增

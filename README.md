@@ -148,7 +148,7 @@ dsh-tray.exe --selftest out.txt   # write diagnostics only; no UI, starts nothin
 ## Known limitations
 
 - **Windows only** (WinForms + `taskkill`).
-- **UI strings are currently Chinese**; PRs for localisation are welcome.
+- UI strings follow the system language (Chinese on Chinese systems, English otherwise); force one with `language=` in `dsh-tray.ini` or the `DSH_TRAY_LANG=zh|en` environment variable.
 - If DSH was **started elsewhere** (e.g. `npx dsh web` in a terminal), the tray has no token URL and
   can only open the bare address. That works as long as the browser still holds that process's signed
   cookie; otherwise restart DSH from this launcher.

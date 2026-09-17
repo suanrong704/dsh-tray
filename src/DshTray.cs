@@ -69,14 +69,14 @@ namespace DshTray
             _logPath = Path.Combine(logDir, "dsh-web.log");
 
             ContextMenuStrip menu = new ContextMenuStrip();
-            ToolStripMenuItem open = new ToolStripMenuItem("打开 DeepSeek Harness", null, OnOpen);
+            ToolStripMenuItem open = new ToolStripMenuItem(L("打开 DeepSeek Harness", "Open DeepSeek Harness"), null, OnOpen);
             open.Font = new Font(open.Font, FontStyle.Bold);   // 默认项加粗
             menu.Items.Add(open);
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("打开日志", null, OnOpenLog));
-            menu.Items.Add(new ToolStripMenuItem("打开工作区", null, OnOpenWorkspace));
+            menu.Items.Add(new ToolStripMenuItem(L("打开日志", "Open Log"), null, OnOpenLog));
+            menu.Items.Add(new ToolStripMenuItem(L("打开工作区", "Open Workspace"), null, OnOpenWorkspace));
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("退出（结束 DSH）", null, OnExitClicked));
+            menu.Items.Add(new ToolStripMenuItem(L("退出（结束 DSH）", "Exit (stop DSH)"), null, OnExitClicked));
 
             _icon = new NotifyIcon();
             _icon.Icon = LoadAppIcon();
@@ -250,8 +250,8 @@ namespace DshTray
         {
             if (PortListening(_port))
             {
-                SetTip("DeepSeek Harness — 运行中（外部启动）");
-                Notify("DeepSeek Harness", "检测到已在运行，已连接到 " + _url);
+                SetTip(L("DeepSeek Harness — 运行中（外部启动）", "DeepSeek Harness — running (started externally)"));
+                Notify("DeepSeek Harness", L("检测到已在运行，已连接到 ", "Already running, connected to ") + _url);
                 return;
             }
             StartDsh();
@@ -264,8 +264,8 @@ namespace DshTray
             string workDir;
             if (!ResolveEntry(_workspace, _port, out fileName, out arguments, out workDir))
             {
-                NotifyError("找不到 dsh 入口",
-                    "请确认 dsh 已安装，或设置 DSH_EXE 环境变量指向 dsh.cmd / bin.js。");
+                NotifyError(L("找不到 dsh 入口", "dsh entry point not found"),
+                    L("请确认 dsh 已安装，或设置 DSH_EXE 环境变量指向 dsh.cmd / bin.js。", "Make sure dsh is installed, or point the DSH_EXE variable at dsh.cmd / bin.js."));
                 return;
             }
             // 配置里的工作区可能不存在（刚复制模板、路径写错等）。
@@ -274,7 +274,7 @@ namespace DshTray
             {
                 string fallback = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 Log("workspace not found: " + workDir + " -> using " + fallback);
-                Notify("工作区不存在，已改用用户主目录", workDir + "  ->  " + fallback);
+                Notify(L("工作区不存在，已改用用户主目录", "Workspace not found - using the user profile"), workDir + "  ->  " + fallback);
                 workDir = fallback;
             }
             try
@@ -300,12 +300,12 @@ namespace DshTray
                 _owned = true;
                 _waitingForPort = true;
                 _startDeadline = DateTime.Now.AddSeconds(120);
-                SetTip("DeepSeek Harness — 启动中…");
+                SetTip(L("DeepSeek Harness — 启动中…", "DeepSeek Harness — starting..."));
                 Log("=== launcher: " + fileName + " " + arguments + " (cwd=" + workDir + ") ===");
             }
             catch (Exception ex)
             {
-                NotifyError("启动失败", ex.Message);
+                NotifyError(L("启动失败", "Failed to start"), ex.Message);
             }
         }
 
@@ -534,13 +534,13 @@ namespace DshTray
                     _waitingForPort = false;
                     _waitingForUrl = true;
                     _urlDeadline = DateTime.Now.AddSeconds(10);
-                    SetTip("DeepSeek Harness — 运行中");
+                    SetTip(L("DeepSeek Harness — 运行中", "DeepSeek Harness — running"));
                 }
                 else if (DateTime.Now > _startDeadline)
                 {
                     _waitingForPort = false;
-                    SetTip("DeepSeek Harness — 启动超时");
-                    NotifyError("启动超时", "120 秒内端口未就绪，请打开日志排查。");
+                    SetTip(L("DeepSeek Harness — 启动超时", "DeepSeek Harness — start timed out"));
+                    NotifyError(L("启动超时", "Start timed out"), L("120 秒内端口未就绪，请打开日志排查。", "The port was not ready within 120 seconds. Open the log to investigate."));
                 }
                 return;
             }
@@ -549,7 +549,7 @@ namespace DshTray
                 if (_readyUrl != null || DateTime.Now > _urlDeadline)
                 {
                     _waitingForUrl = false;
-                    Notify("DeepSeek Harness 已启动", "正在打开浏览器…");
+                    Notify(L("DeepSeek Harness 已启动", "DeepSeek Harness started"), L("正在打开浏览器…", "Opening the browser..."));
                     OpenBrowser();
                 }
                 return;
@@ -560,8 +560,8 @@ namespace DshTray
                 try { gone = _dsh.HasExited; } catch { gone = true; }
                 if (gone)
                 {
-                    SetTip("DeepSeek Harness — 已停止");
-                    Notify("DeepSeek Harness 已停止", "进程已退出，托盘图标即将关闭。");
+                    SetTip(L("DeepSeek Harness — 已停止", "DeepSeek Harness — stopped"));
+                    Notify(L("DeepSeek Harness 已停止", "DeepSeek Harness stopped"), L("进程已退出，托盘图标即将关闭。", "The process exited; this tray icon will close."));
                     DoExit();
                 }
                 return;
@@ -594,7 +594,7 @@ namespace DshTray
             }
             catch (Exception ex)
             {
-                NotifyError("无法打开浏览器", ex.Message + " —— 请手动访问 " + target);
+                NotifyError(L("无法打开浏览器", "Could not open the browser"), ex.Message + L(" —— 请手动访问 ", " - open manually: ") + target);
             }
         }
 
@@ -607,7 +607,7 @@ namespace DshTray
                 psi.UseShellExecute = true;
                 Process.Start(psi);
             }
-            catch (Exception ex) { NotifyError("无法打开日志", ex.Message); }
+            catch (Exception ex) { NotifyError(L("无法打开日志", "Could not open the log"), ex.Message); }
         }
 
         private void OnOpenWorkspace(object sender, EventArgs e)
@@ -620,7 +620,7 @@ namespace DshTray
                 psi.UseShellExecute = false;
                 Process.Start(psi);
             }
-            catch (Exception ex) { NotifyError("无法打开工作区", ex.Message); }
+            catch (Exception ex) { NotifyError(L("无法打开工作区", "Could not open the workspace"), ex.Message); }
         }
 
         private void OnExitClicked(object sender, EventArgs e) { DoExit(); }
@@ -646,6 +646,24 @@ namespace DshTray
             try { _icon.Dispose(); } catch { }
             ExitThread();
         }
+
+        // ---------- 语言 ----------
+        // 界面文案随系统语言切换：中文系统用中文，其余一律英文。
+        private static readonly bool Zh = DetectZh();
+
+        private static bool DetectZh()
+        {
+            try
+            {
+                // DSH_TRAY_LANG=zh|en 可强制界面语言（默认跟随系统）
+                string force = Environment.GetEnvironmentVariable("DSH_TRAY_LANG");
+                if (!string.IsNullOrEmpty(force)) return force.ToLowerInvariant().StartsWith("zh");
+                return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            }
+            catch { return false; }
+        }
+
+        private static string L(string zh, string en) { return Zh ? zh : en; }
 
         // ---------- 小工具 ----------
         private void SetTip(string text)
@@ -742,6 +760,7 @@ namespace DshTray
             sb.AppendLine("logPath      = " + Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "DshTray", "dsh-web.log"));
+            sb.AppendLine("uiLanguage   = " + (Zh ? "zh" : "en"));
             sb.AppendLine("urlParseTest = " + ExtractUrl("dsh web: http://127.0.0.1:3080/?token=ABC123def"));
             return sb.ToString();
         }
@@ -781,6 +800,12 @@ namespace DshTray
                     {
                         string v = val.ToLowerInvariant();
                         officialIcon = !(v == "0" || v == "false" || v == "no" || v == "off");
+                    }
+                    else if (key == "language" && val.Length > 0)
+                    {
+                        // 界面语言；环境变量优先。必须在 TrayApp 静态初始化之前设置。
+                        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DSH_TRAY_LANG")))
+                            Environment.SetEnvironmentVariable("DSH_TRAY_LANG", val);
                     }
                 }
             }

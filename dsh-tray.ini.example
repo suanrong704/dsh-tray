@@ -13,3 +13,7 @@ port=3080
 # 程序本身不携带该图形。设为 0/false/no/off 可关掉，改用 exe 同目录的 dsh.ico
 # 或 exe 内嵌图标（本项目原创的胖鲸）。
 # officialIcon=1
+
+# 界面语言：zh 或 en。不写则跟随系统语言（中文系统中文，其余英文）。
+# 环境变量 DSH_TRAY_LANG 优先级更高。
+# language=zh
