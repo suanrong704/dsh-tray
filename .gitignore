@@ -1,0 +1,16 @@
+# 构建产物（含从本机 DSH 生成的图标，故不提交）
+dist/
+build/
+
+# 本机配置
+dsh-tray.ini
+
+# 依赖（sharp 是可选的构建期依赖）
+node_modules/
+
+# 编辑器 / 系统
+.vs/
+*.user
+*.suo
+Thumbs.db
+desktop.ini

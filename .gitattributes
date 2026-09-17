@@ -1,0 +1,13 @@
+# 换行策略：批处理文件必须是 CRLF。
+#
+# 这不是洁癖：cmd.exe 按字节偏移逐行读取 .cmd/.bat，LF-only 文件会让它的行偏移
+# 全面错位，导致每一行都在中间被截断执行。本仓库的 scripts/build.cmd 就是这种文件。
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制：不要做任何换行/编码转换
+*.ico binary
+*.exe binary
+*.png binary

@@ -1,0 +1,37 @@
+# NOTICE
+
+## 非官方项目
+
+dsh-tray 是社区项目，**与 DeepSeek 没有任何隶属关系，也未获得其背书**。
+"DeepSeek"、"DeepSeek Harness" 及相关图形是 DeepSeek 的商标。
+
+## 关于图标：本仓库不分发官方图形
+
+托盘图标的外观来自 DeepSeek Harness 自带的 `favicon.svg`（DeepSeek 鲸鱼）。
+本仓库**不包含、不提交**该图形文件；`tools/build-icon.js` 在**构建时**从使用者
+自己机器上已安装的 DSH 中读取它，即时渲染成 `.ico`：
+
+```
+<DSH_HOME>/profiles/*/node_modules/@deepseek-ai/dsh-web-frontend/dist/favicon.svg
+```
+
+这样做有两个原因：
+
+1. **商标**：该 favicon 的版权许可为 MIT（Copyright (c) 2026 DeepSeek），
+   MIT 允许带署名再分发；但**图形同时是 DeepSeek 的商标，而 MIT 不授予商标权**。
+   把官方标识放进第三方项目容易让人误以为存在官方关联。
+2. **保持仓库干净**：仓库里只留 MIT 许可的本项目代码。
+
+**因此本项目只发布源码，不发布预编译二进制。** 用本仓库构建出的 exe 会内嵌
+（或在其旁边生成）该图形，把它作为 Release 附件分发等同于再分发官方标识——
+请自行判断并承担相应责任。
+
+## 第三方组件
+
+| 组件 | 用途 | 许可 |
+|---|---|---|
+| `@deepseek-ai/dsh-web-frontend` | 仅构建时读取其 `favicon.svg`，不随仓库分发 | MIT, Copyright (c) 2026 DeepSeek |
+| `sharp`（可选） | 构建时把 SVG 渲染为 PNG/ICO；复用使用者机器上一份已有安装 | Apache-2.0 |
+| `System.Windows.Forms` / `System.Drawing` | 托盘与图标，随 .NET Framework 提供 | Microsoft .NET Framework 许可 |
+
+本项目代码以 MIT 许可发布，见 [LICENSE](./LICENSE)。

@@ -1,0 +1,10 @@
+# dsh-tray 配置
+#
+# 改完保存，重新启动 dsh-tray.exe 生效。
+# 注意：本文件不做环境变量展开，请写完整路径。
+
+# GUI 里「新建会话」的默认根目录（DSH 的工作区根）
+workspace=C:\Users\YourName\workspace
+
+# Web GUI 端口。改了它，DSH 与托盘会用新端口；不同端口可同时跑多份实例。
+port=3080
