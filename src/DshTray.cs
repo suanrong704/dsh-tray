@@ -130,6 +130,15 @@ namespace DshTray
                     "请确认 dsh 已安装，或设置 DSH_EXE 环境变量指向 dsh.cmd / bin.js。");
                 return;
             }
+            // 配置里的工作区可能不存在（刚复制模板、路径写错等）。
+            // 这不应该导致启动失败：退回用户主目录并明确告知使用者。
+            if (!Directory.Exists(workDir))
+            {
+                string fallback = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                Log("workspace not found: " + workDir + " -> using " + fallback);
+                Notify("工作区不存在，已改用用户主目录", workDir + "  ->  " + fallback);
+                workDir = fallback;
+            }
             try
             {
                 ProcessStartInfo psi = new ProcessStartInfo(fileName, arguments);
@@ -465,9 +474,11 @@ namespace DshTray
 
         private void OnOpenWorkspace(object sender, EventArgs e)
         {
+            string dir = _workspace;
+            if (!Directory.Exists(dir)) dir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             try
             {
-                ProcessStartInfo psi = new ProcessStartInfo("explorer.exe", "\"" + _workspace + "\"");
+                ProcessStartInfo psi = new ProcessStartInfo("explorer.exe", "\"" + dir + "\"");
                 psi.UseShellExecute = false;
                 Process.Start(psi);
             }
@@ -572,6 +583,7 @@ namespace DshTray
             sb.AppendLine("port         = " + port);
             sb.AppendLine("url          = http://127.0.0.1:" + port);
             sb.AppendLine("iconExists   = " + File.Exists(Path.Combine(appDir, "dsh.ico")));
+            sb.AppendLine("wsExists     = " + Directory.Exists(workspace));
             sb.AppendLine("resolvedFile = " + fileName);
             sb.AppendLine("resolvedArgs = " + arguments);
             sb.AppendLine("resolvedCwd  = " + workDir);

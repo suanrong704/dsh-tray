@@ -62,8 +62,12 @@ if ($LASTEXITCODE -ne 0) { throw ('Compile failed (csc exit code ' + $LASTEXITCO
 $iniExample = Join-Path $root 'dsh-tray.ini.example'
 $iniTarget = Join-Path $OutDir 'dsh-tray.ini'
 if ((Test-Path $iniExample) -and -not (Test-Path $iniTarget)) {
-    Copy-Item $iniExample $iniTarget
-    Write-Host ('      Wrote config template: ' + $iniTarget)
+    # Seed with this user's real profile path so the first run works without edits.
+    # Read/write as UTF-8 explicitly: the template carries non-ASCII comments.
+    $template = [IO.File]::ReadAllText($iniExample, [Text.Encoding]::UTF8)
+    $seeded = $template.Replace('C:\Users\YourName\workspace', $env:USERPROFILE)
+    [IO.File]::WriteAllText($iniTarget, $seeded, (New-Object Text.UTF8Encoding($false)))
+    Write-Host ('      Wrote config template: ' + $iniTarget + '  (workspace=' + $env:USERPROFILE + ')')
 }
 
 # ---- 3. Self-check ----
