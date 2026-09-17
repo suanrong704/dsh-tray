@@ -5,6 +5,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Cancel superseded runs on the same ref: this CI is a build check, not a release gate.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     # dsh-tray is a Windows-only .NET Framework tray application.
