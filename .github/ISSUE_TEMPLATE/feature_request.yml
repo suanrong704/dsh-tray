@@ -1,0 +1,27 @@
+name: 功能建议
+description: 想要的新能力或体验改进
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 先讲场景与痛点，再讲你设想的方案
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你设想的方案
+      description: 有具体做法更好；没有也没关系
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: 请确认以下边界（本项目的设计约束）
+      options:
+        - label: 我理解本项目**不内嵌** DeepSeek 官方图形，托盘图标是运行时从本机 DSH 读取渲染的
+        - label: 我理解构建脚本必须保持纯 ASCII、`.cmd` 必须 CRLF、C# 必须是 C# 5 语法（见 CONTRIBUTING）
