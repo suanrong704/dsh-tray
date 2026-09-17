@@ -33,6 +33,8 @@
 
 ## 图标说明
 
+<img src="assets/icon-app-preview.png" width="88" alt="dsh-tray 的 exe 图标">
+
 本项目**不携带** DeepSeek 的图形标识。两类图标来源不同：
 
 **① 托盘图标**（右下角）—— 启动时按以下顺序取得：

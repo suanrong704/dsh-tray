@@ -35,6 +35,8 @@ next to the exe if you want to change it (see `dsh-tray.ini.example`).
 
 ## About the icons
 
+<img src="assets/icon-app-preview.png" width="88" alt="dsh-tray exe icon">
+
 This project **ships no DeepSeek artwork**. The two icons have different sources:
 
 **1. Notification-area (tray) icon** — resolved at startup in this order:
